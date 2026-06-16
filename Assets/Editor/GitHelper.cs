@@ -36,6 +36,12 @@ namespace URTC.Editor
         {
             Author = new Signature(authorName, authorEmail, DateTime.Now);
         }
+
+        public GitHelper(string authorName, string authorEmail, string repositoryPath)
+        {
+            Author = new Signature(authorName, authorEmail, DateTime.Now);
+            RepositoryPath = repositoryPath;
+        }
         
         #endregion
         
@@ -312,13 +318,27 @@ namespace URTC.Editor
         /// <param name="username">Git username or token</param>
         /// <param name="password">Git password or personal access token</param>
         /// <returns>True if successful, false otherwise</returns>
-        public bool PullFromRemote(string remoteName, string branchName, string username, string password)
+        public bool PullFromRemote(string localPath, string remoteName, string branchName, string username, string password)
         {
             try
             {
+                if (!string.IsNullOrEmpty(localPath))
+                    RepositoryPath = localPath;
+
+                if (string.IsNullOrEmpty(RepositoryPath))
+                {
+                    Debug.LogError("[GitHelper] Pull failed: repository path is null.");
+                    return false;
+                }
+
+                if (!Repository.IsValid(RepositoryPath))
+                {
+                    Debug.LogError($"[GitHelper] Not a valid Git repo: '{RepositoryPath}'. Collaborator needs to clone first.");
+                    return false;
+                }
+
                 using var repo = new Repository(RepositoryPath);
-                
-                // Setup pull options with credentials
+
                 var pullOptions = new PullOptions
                 {
                     FetchOptions = new FetchOptions
@@ -332,11 +352,10 @@ namespace URTC.Editor
                     }
                 };
 
-                // Pull the changes
                 var signature = new Signature(Author.Name, Author.Email, DateTime.Now);
                 Commands.Pull(repo, signature, pullOptions);
-                
-                Debug.Log($"[GitHelper] Successfully pulled from '{remoteName}'");
+
+                Debug.Log("[GitHelper] Pull successful.");
                 return true;
             }
             catch (Exception ex)
@@ -419,6 +438,31 @@ namespace URTC.Editor
             
             Debug.Log("[GitHelper] ===== Commit & Push Completed =====");
             return true;
+        }
+
+        public bool CloneRepository(string remoteUrl, string localPath, string username, string password)
+        {
+            try
+            {
+                var cloneOptions = new CloneOptions
+                {
+                    CredentialsProvider = (url, user, cred) =>
+                        new UsernamePasswordCredentials
+                        {
+                            Username = username,
+                            Password = password
+                        }
+                };
+
+                RepositoryPath = Repository.Clone(remoteUrl, localPath, cloneOptions);
+                Debug.Log($"[GitHelper] Cloned successfully to '{localPath}'");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[GitHelper] Clone failed: {ex.Message}");
+                return false;
+            }
         }
         
         #endregion

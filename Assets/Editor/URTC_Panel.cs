@@ -347,19 +347,26 @@ namespace URTC.Editor
 
         private void StartSimulatedPull()
         {
-            if (gitHelper == null) gitHelper = new GitHelper(userEmail.Split('@')[0], userEmail);
+            // Get your Unity project root folder
+            string localRepoPath = UnityEngine.Application.dataPath.Replace("/Assets", "");
 
-            bool success = gitHelper.PullFromRemote(
-                "origin",
-                "main",
-                userEmail.Split('@')[0],
-                githubToken
-            );
+            // Create GitHelper with the collaborator's info + local path
+            var git = new GitHelper(collaboratorName, collaboratorEmail, localRepoPath);
 
-            if (success)
-                statusMessage = "Latest changes pulled from GitHub.";
-            else
-                statusMessage = "Error: Failed to pull changes. Check Console.";
+            // If no repo exists locally yet, clone it first
+            if (!GitHelper.IsValidRepository(localRepoPath))
+            {
+                Debug.Log("[URTC] No local repo found. Cloning...");
+                bool cloned = git.CloneRepository(remoteUrl, localRepoPath, accessToken, accessToken);
+                if (!cloned)
+                    Debug.LogError("[URTC] Clone failed.");
+                else
+                    Debug.Log("[URTC] Clone done — project is up to date.");
+                return;
+            }
+
+            // Repo exists, just pull
+            git.PullFromRemote(localRepoPath, "origin", "main", accessToken, accessToken);
         }
 
         #endregion
