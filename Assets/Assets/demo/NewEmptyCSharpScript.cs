@@ -10,4 +10,5 @@ public class NewEmptyCSharpScript
     /// new check
     /// gchfjygyj,fyjfjuf
     // yes
+    //ty
 }
